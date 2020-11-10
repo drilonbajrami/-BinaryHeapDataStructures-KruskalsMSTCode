@@ -1,14 +1,24 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class MinHeap : MonoBehaviour
 {
-	[Range(1, 31)]
-	public int capacity;
-	private int size = 0;
+	Color32 RED = new Color32(255, 50, 50, 255);
+	Color32 GREEN = new Color32(50, 255, 50, 255);
+	Color32 BLUE = new Color32(50, 255, 50, 255);
+	Color32 YELLOW = new Color32(255, 255, 50, 255);
+	Color32 TRANSPARENT = new Color32(0, 0, 0, 0);
+
+	float animationSpeed = 1.0f;
+	bool working = false;
+	public string value;
+
+	private int capacity = 31;
+	[Range(1,31)]
+	public int size;
 	private int gens = 0;
 
 	Node[] items;
@@ -17,55 +27,248 @@ public class MinHeap : MonoBehaviour
 	public Node nodePrefab;
 	public Connection connectionPrefab;
 
-	void Start()
-	{
+	private void OnEnable() {
+		size = UnityEngine.Random.Range(5, 20);
 		items = new Node[capacity];
 		connections = new List<Connection>();
+		addNodes();
+		placeNodes();
+		addConnections();
+	}
 
-		// Add nodes
-		while (size < capacity)
-		{
-			Node node;
-			node = Instantiate(nodePrefab, Random.insideUnitCircle, Quaternion.identity);
-			node.Value = Random.Range(0, 100);
-			node.transform.parent = gameObject.transform;
+	private void OnDisable() {
+		for (int i = 0; i < size; i++)
+			DestroyImmediate(items[i].gameObject);
 
-			items[size] = node;
-			size++;
-		}
+		foreach (Connection c in connections)
+			if(c != null)
+				DestroyImmediate(c.gameObject);
 
-		//for (int i = 0; i < size; i++)
-		//{
-		//	Node node;
-		//	node = Instantiate(nodePrefab, Random.insideUnitCircle, Quaternion.identity);
-		//	node.Value = Random.Range(0, 100);
-		//	node.transform.parent = gameObject.transform;
+		Array.Clear(items, 0, items.Length);
+		connections.Clear();
+		size = 0;
+	}
 
-		//	items[i] = node;
-		//}
+	void Update() {
+		value = FindObjectOfType<InputField>().text;
+		GameObject.FindGameObjectWithTag("AnimationSpeedNumber").GetComponent<Text>().text = animationSpeed.ToString("0.00");
 
-		gens = getNumberOfGenerations();
+		for (int i = 0; i < connections.Count; i++)
+			if(connections[i] != null)
+				checkConnectionColor(connections[i]);
+	}
 
-		// Place nodes in a binary tree formation
-		for (int i = 0; i < items.Length; i++)
-		{
-			if (i == 0) { items[i].transform.position = new Vector2(0, 4); }
-			else
-			{
-				Vector3 parentNode = items[getParentIndex(i)].transform.position;
+	//============================================================================================================================//
+	//================================================== Binary Heap operations ==================================================//
+	//============================================================================================================================//
+	int getLeftChildIndex(int parentIndex) { return parentIndex * 2 + 1; }
+	int getRightChildIndex(int parentIndex) { return parentIndex * 2 + 2; }
+	int getParentIndex(int childIndex) { return (childIndex - 1) / 2; }
 
-				if (i % 2 != 0)
-					items[i].transform.position = new Vector2(parentNode.x - halfWayFromParent(getInverseGeneration(i, gens)), parentNode.y - 1);
+	bool hasLeftChild(int index) { return getLeftChildIndex(index) < size; }
+	bool hasRightChild(int index) { return getRightChildIndex(index) < size; }
+	bool hasParent(int index) { return getParentIndex(index) >= 0; }
+
+	IEnumerator swap(int indexA, int indexB) {
+		// Change colors
+		items[indexA].transform.GetChild(1).GetComponent<SpriteRenderer>().color = RED;
+		items[indexB].transform.GetChild(1).GetComponent<SpriteRenderer>().color = RED;
+		yield return new WaitForSeconds(animationSpeed);
+		// Swap items
+		int temp = items[indexA].Value;
+		items[indexA].Value = items[indexB].Value;
+		items[indexB].Value = temp;
+		// Change colors
+		items[indexA].transform.GetChild(1).GetComponent<SpriteRenderer>().color = GREEN;
+		items[indexB].transform.GetChild(1).GetComponent<SpriteRenderer>().color = GREEN;
+		yield return new WaitForSeconds(animationSpeed);
+		// Change colors
+		items[indexA].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+		items[indexB].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+	}
+
+	public int peek() {
+		if (items[0] != null)
+			return items[0].Value;
+		else 
+			return 0;
+	}
+
+	// Calls insertCoroutine()
+	public void insert() {
+		StartCoroutine(insertCoroutine());
+	}
+
+	// Calls extractCoroutine()
+	public void extract() {
+		StartCoroutine(extractCoroutine());
+	}
+
+	IEnumerator insertCoroutine() {
+		if (working == false && items.Length > 0) {
+			working = true;
+			if (size < capacity) {
+				Node node;
+				node = Instantiate(nodePrefab, UnityEngine.Random.insideUnitCircle, Quaternion.identity);
+				if (value == "")
+					node.Value = UnityEngine.Random.Range(0, 100);
 				else
-					items[i].transform.position = new Vector2(parentNode.x + halfWayFromParent(getInverseGeneration(i, gens)), parentNode.y - 1);
+					node.Value = int.Parse(value);
+				node.transform.parent = gameObject.transform;
+				items[size] = node;
+				size++;
+				placeNodes();
+				addConnection();
+				Coroutine a = StartCoroutine(heapifyUp());
+				yield return a;
+			}
+			working = false;
+		}
+	}
+
+	IEnumerator extractCoroutine() {
+		if (working == false) {
+			working = true;
+			if (size > 1) {
+				// Change colors
+				items[0].transform.GetChild(1).GetComponent<SpriteRenderer>().color = RED;
+				items[size - 1].transform.GetChild(1).GetComponent<SpriteRenderer>().color = BLUE;
+				yield return new WaitForSeconds(animationSpeed);
+				items[0].Value = items[size - 1].Value;
+				// Change colors
+				items[0].transform.GetChild(1).GetComponent<SpriteRenderer>().color = BLUE;
+				// Extract
+				DestroyImmediate(items[size - 1].gameObject);
+				items[size - 1] = null;
+				DestroyImmediate(connections[connections.Count - 1].gameObject);
+				connections.RemoveAt(connections.Count - 1);
+				size--;
+				yield return new WaitForSeconds(animationSpeed);
+				// Change colors
+				items[0].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+				yield return new WaitForSeconds(animationSpeed);
+				Coroutine a = StartCoroutine(heapifyDown());
+				yield return a;
+			}
+			else if (size == 1) {
+				DestroyImmediate(items[0].gameObject);
+				size--;
+				yield return new WaitForSeconds(animationSpeed);
+			}
+			working = false;
+		}
+	}
+
+	IEnumerator heapifyUp() {
+		int index = size - 1;
+		while (hasParent(index) && items[getParentIndex(index)].Value > items[index].Value) {
+			Coroutine a = StartCoroutine(swap(getParentIndex(index), index));	
+			yield return a;
+			index = getParentIndex(index);		
+		}
+	}
+
+	IEnumerator heapifyDown() {
+		int index = 0;
+		Coroutine a;
+		while (hasLeftChild(index)) {
+			// Change colors
+			items[index].transform.GetChild(1).GetComponent<SpriteRenderer>().color = RED;
+			items[getLeftChildIndex(index)].transform.GetChild(1).GetComponent<SpriteRenderer>().color = YELLOW;
+			int smallerChildIndex = getLeftChildIndex(index);
+			yield return new WaitForSeconds(animationSpeed);
+
+			if (hasRightChild(index) && items[getRightChildIndex(index)].Value < items[getLeftChildIndex(index)].Value) {
+				// Change colors
+				items[getLeftChildIndex(index)].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+				items[getRightChildIndex(index)].transform.GetChild(1).GetComponent<SpriteRenderer>().color = YELLOW;
+				smallerChildIndex = getRightChildIndex(index);
+				yield return new WaitForSeconds(animationSpeed);
+			}
+
+			if (items[index].Value < items[smallerChildIndex].Value) {
+				// Change colors
+				items[index].transform.GetChild(1).GetComponent<SpriteRenderer>().color = GREEN;
+				items[smallerChildIndex].transform.GetChild(1).GetComponent<SpriteRenderer>().color = GREEN;
+				yield return new WaitForSeconds(animationSpeed);
+				// Change colors
+				items[index].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+				items[smallerChildIndex].transform.GetChild(1).GetComponent<SpriteRenderer>().color = TRANSPARENT;
+				break;
+			}
+			else
+				a = StartCoroutine(swap(index, smallerChildIndex));
+
+			yield return a;
+			index = smallerChildIndex;
+		}
+	}
+
+	// Animation speed slider
+	public void OnValueChanged(float newValue) {
+		animationSpeed = newValue;
+	}
+
+	// Value insert input
+	public void OnValueChanged(string newValue) {
+		value = newValue;
+	}
+
+	//============================================================================================================================//
+	//================================================== Group "Helper methods" ==================================================//
+	//============================================================================================================================//
+	/// <summary>
+	/// Sort the "items" array by node value
+	/// </summary>
+	void sortItems() {
+		int[] tempItems = new int[size];
+		for (int i = 0; i < size; i++)
+			tempItems[i] = items[i].Value;
+
+		Array.Sort(tempItems);
+
+		for (int i = 0; i < size; i++)
+			items[i].Value = tempItems[i];
+	}
+
+	/// <summary>
+	/// Adds nodes for creating a simple starting binary heap tree
+	/// </summary>
+	void addNodes() {
+		for (int i = 0; i < size; i++) {
+			Node node;
+			node = Instantiate(nodePrefab, UnityEngine.Random.insideUnitCircle, Quaternion.identity);
+			node.Value = UnityEngine.Random.Range(0, 100);
+			node.transform.parent = gameObject.transform;
+			items[i] = node;
+		}
+		sortItems();
+	}
+
+	/// <summary>
+	/// Places the nodes evenly spaced in a binary tree formation
+	/// depending on the number of node generations
+	/// </summary>
+	void placeNodes() {
+		gens = getNumberOfGenerations();
+		for (int i = 0; i < size; i++) {
+			if (i == 0) items[i].transform.position = new Vector2(0,2);
+			else {
+				Vector3 parentNode = items[getParentIndex(i)].transform.position;
+				if (i % 2 != 0)
+					items[i].transform.position = new Vector2(parentNode.x - halfWayFromParent(getInverseGeneration(i, gens)), parentNode.y - 1.5f);
+				else
+					items[i].transform.position = new Vector2(parentNode.x + halfWayFromParent(getInverseGeneration(i, gens)), parentNode.y - 1.5f );
 			}
 		}
+	}
 
-		// Add connections between parent and child nodes
-		for (int i = 0; i < items.Length; i++)
-		{
-			if (hasLeftChild(i))
-			{
+	/// <summary>
+	/// Adds all the connections after the binary heap nodes are created
+	/// </summary>
+	void addConnections() {
+		for (int i = 0; i < size; i++) {
+			if (hasLeftChild(i)) {
 				Connection c;
 				c = Instantiate(connectionPrefab, Vector3.zero, Quaternion.identity);
 				c.Parent = items[i];
@@ -73,8 +276,7 @@ public class MinHeap : MonoBehaviour
 				c.transform.parent = items[i].transform;
 				connections.Add(c);
 
-				if (hasRightChild(i))
-				{
+				if (hasRightChild(i)) {
 					c = Instantiate(connectionPrefab, Vector3.zero, Quaternion.identity);
 					c.Parent = items[i];
 					c.Child = items[getRightChildIndex(i)];
@@ -85,77 +287,38 @@ public class MinHeap : MonoBehaviour
 		}
 	}
 
-	void Update()
-	{
-		gens = getNumberOfGenerations();
-
-		for (int i = 0; i < connections.Count; i++)
-		{
-			checkConnectionColor(connections[i]);
-		}
+	/// <summary>
+	/// Adds a new connection between the last added node and its parent node
+	/// </summary>
+	void addConnection() {
+		Connection c;
+		c = Instantiate(connectionPrefab, Vector3.zero, Quaternion.identity);
+		c.Parent = items[getParentIndex(size - 1)];
+		c.Child = items[size - 1];
+		c.transform.parent = items[getParentIndex(size - 1)].transform;
+		connections.Add(c);
 	}
 
-	int getLeftChildIndex(int parentIndex) { return parentIndex * 2 + 1; }
-	int getRightChildIndex(int parentIndex) { return parentIndex * 2 + 2; }
-	int getParentIndex(int childIndex) { return (childIndex - 1) / 2; }
-
-	bool hasLeftChild(int index) { return getLeftChildIndex(index) < items.Length; }
-	bool hasRightChild(int index) { return getRightChildIndex(index) < items.Length; }
-	bool hasParent(int index) { return getParentIndex(index) >= 0; }
-
-	Node leftChild(int index) { return items[getLeftChildIndex(index)]; }
-	Node rightChild(int index) { return items[getRightChildIndex(index)]; }
-	Node parent(int index) { return items[getParentIndex(index)]; }
-
-	void swap(int indexOne, int indexTwo) 
-	{
-		Node temp = items[indexOne];
-		items[indexOne] = items[indexTwo];
-		items[indexTwo] = temp;
-	}
-	void ensureCapacity() { }
-	Node peek() { return items[0]; }
-	void insert(Node node) 
-	{
-
-	}
-	Node extract()
-	{
-		Node node = items[0];
-		items[0] = items[items.Length - 1];
-		return node;
-	}
-	
-	void heapifyUp() { }
-	void heapifyDown() { }
-	    
-	// Group "Helper methods"
+	//============================================================================================================================//
+	//================================================== Group "Helper methods" ==================================================//
+	//============================================================================================================================//
 	/// <summary>
 	/// Returns the number of generations of a binary heap tree.
 	/// </summary>
 	/// <returns></returns>
-	int getNumberOfGenerations()
-	{
+	int getNumberOfGenerations() {
 		bool found = false;
 		int generations = 0;
-
-		for (int i = 0; i < items.Length; i++)
-		{
-			if (found)
-				break;
-
-			if (items.Length == 0)
-			{
+		for (int i = 0; i < size; i++) {
+			if (found) break;
+			if (size == 0) {
 				generations = 0;
 				found = true;
-			}
-			else if (items.Length > Mathf.Pow(2, i) - 1 && items.Length < Mathf.Pow(2, i + 1))
-			{
+			} else if (size > Mathf.Pow(2, i) - 1 && size < Mathf.Pow(2, i + 1)) {
 				generations = i + 1;
 				found = true;
 			}
 		}
-
 		return generations;
 	}
 
@@ -164,18 +327,12 @@ public class MinHeap : MonoBehaviour
 	/// </summary>
 	/// <param name="i"></param>
 	/// <returns></returns>
-	int getGeneration(int i)
-	{
+	int getGeneration(int i) {
 		int generation = 0;
-
-		if (i == 0) 
-			generation = 1;
-		else
-		{
-			for (int j = 2; j < items.Length; j++)
-			{
-				if (i + 1 < Mathf.Pow(2, j))
-				{
+		if (i == 0) generation = 1;
+		else {
+			for (int j = 2; j < size; j++) {
+				if (i + 1 < Mathf.Pow(2, j)) {
 					generation = j;
 					break;
 				}
@@ -191,16 +348,13 @@ public class MinHeap : MonoBehaviour
 	/// <param name="index"></param>
 	/// <param name="generations"></param>
 	/// <returns></returns>
-	int getInverseGeneration(int index, int generations)
-	{
+	int getInverseGeneration(int index, int generations) {
 		float middle = generations / 2 + 0.5f;
 		int iG = 0;
-
 		if (generations % 2 == 0)
 			iG = (int)(middle + (middle - getGeneration(index)));
 		else if (generations % 2 != 0)	
 			iG = (int)(middle + (middle - getGeneration(index)) + 1);
-
 		return iG;
 	}
 
@@ -210,19 +364,17 @@ public class MinHeap : MonoBehaviour
 	/// </summary>
 	/// <param name="itemGeneration"></param>
 	/// <returns></returns>
-	float halfWayFromParent(int itemGeneration)
-	{
+	float halfWayFromParent(int itemGeneration) {
 		return Mathf.Pow(2, itemGeneration - 2 - 1)*2;
 	}
 
 	/// <summary>
 	/// For MIN HEAP
-	/// If parent node value is smaller than child node value then color green (CORRECT ORDER)
-	/// If parent node value is greater than child node value then color red (INCORRECT ORDER)
+	/// If parent node value is greater than child node value then color green (CORRECT ORDER)
+	/// If parent node value is smaller than child node value then color red (INCORRECT ORDER)
 	/// </summary>
 	/// <param name="c"></param>
-	void checkConnectionColor(Connection c)
-	{
+	void checkConnectionColor(Connection c) {
 		if (c.Parent.Value <= c.Child.Value) {
 			c.GetComponent<LineRenderer>().startColor = Color.green;
 			c.GetComponent<LineRenderer>().endColor = Color.green;
