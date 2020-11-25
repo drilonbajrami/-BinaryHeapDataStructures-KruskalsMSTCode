@@ -20,4 +20,10 @@ public class Connection : MonoBehaviour
 			points[1] = child.transform.position;
 		line.SetPositions(points);
 	}
+
+	public void ChangeColor(Color color)
+	{
+		GetComponent<LineRenderer>().startColor = color;
+		GetComponent<LineRenderer>().endColor = color;
+	}
 }

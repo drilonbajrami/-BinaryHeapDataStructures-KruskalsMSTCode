@@ -4,10 +4,9 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - AnimationSpeedNumber
-  - AnimationSpeedKnob
-  - AnimationSpeedKnobMax
-  - AnimationSpeedNumberMax
+  - AnimationSpeedMin
+  - AnimationSpeedMax
+  - Edge
   layers:
   - Default
   - TransparentFX
