@@ -5,8 +5,21 @@ using UnityEngine;
 
 public class KruskalMST : MonoBehaviour
 {
-	[Range(1, 10)]
-	public int size;
+	private Color32[] colors = {
+		new Color32(217, 131, 255, 255),
+		new Color32(90, 214, 255, 255),
+		new Color32(200, 255, 90, 255),
+		new Color32(255, 231, 59, 255),
+		new Color32(116, 255, 90, 255), 
+	};
+
+	private float animationSpeed = 1.0f;
+	private int size = 10;
+
+	private bool working = false;
+	private bool graphCreated = false;
+
+	int o; // Number of edges created
 
 	private Vertex[] vertices;
 	private Edge[] edges;
@@ -15,12 +28,119 @@ public class KruskalMST : MonoBehaviour
 	public Vertex vertexPrefab;
 	public Edge edgePrefab;
 
-	private void Start()
+	private void Update()
 	{
-		CreateGraph();
+		UpdateVerticesColors();
 	}
 
-	private void CreateGraph()
+	// Animation speed slider
+	public void OnValueChanged(float newValue)
+	{
+		animationSpeed = newValue;
+	}
+
+	public void RunKruskals()
+	{
+		StartCoroutine(KruskalsMST());
+	}
+
+	public void GenerateGraph()
+	{
+		if (graphCreated == false)
+		{
+			CreateGraph();
+		}
+		else
+		{
+			ClearGraph();
+			CreateGraph();
+		}
+	}
+
+	//================================================== Kruskal's MST Operations ==================================================//
+	private IEnumerator KruskalsMST()
+	{
+		if (working == false)
+		{
+			working = true;
+			Array.Sort(edges, 0, o);
+
+			int i = 0;
+			int e = 0;
+			int c = 0;
+
+			while (e < size - 1)
+			{
+				if (edges[i] != null)
+				{
+					edges[i].ChangeColor(Color.red);
+					yield return new WaitForSeconds(animationSpeed);
+
+					int x = Find(edges[i].A.Index);
+					int y = Find(edges[i].B.Index);
+
+					if (x != y)
+					{
+						edges[i].ChangeColor(new Color32(134, 255, 134, 255));
+						edges[i].GetComponent<LineRenderer>().widthMultiplier = 1.1f;
+						edges[i].GetComponent<LineRenderer>().sortingOrder = -1;
+
+						if (edges[i].A.GetColor().Equals(new Color32(255, 255, 255, 255)) && edges[i].B.GetColor().Equals(new Color32(255, 255, 255, 255)))
+						{
+							edges[i].A.ChangeColor(colors[c]);
+							edges[i].B.ChangeColor(colors[c]);
+							c++;
+						}
+						Union(x, y);
+						yield return new WaitForSeconds(animationSpeed);
+						e++;
+					}
+					else
+						edges[i].ChangeColor(new Color32(200, 200, 200, 255));
+
+					i++;
+				}
+				else
+					i++;
+			}
+
+			for (int a = 0; a < o; a++)
+			{
+				if (edges[a] != null && edges[a].GetColor().Equals(new Color32(200, 200, 200, 255)))
+					DestroyImmediate(edges[a].gameObject);
+			}
+			working = false;
+		}
+	}
+
+	private int Find(int i)
+	{
+		if (vertices[i].Parent != i)
+		{
+			vertices[i].Parent = Find(vertices[i].Parent);
+		}
+		return vertices[i].Parent;
+	}
+
+	private void Union(int x, int y)
+	{
+		if (vertices[x].Rank > vertices[y].Rank)
+		{
+			vertices[y].Parent = x;
+		}
+		else if (vertices[x].Rank < vertices[y].Rank)
+		{
+			vertices[x].Parent = y;
+		}
+		else
+		{
+			vertices[y].Parent = x;
+			vertices[x].Rank++;
+		}
+	}
+
+	//================================================== Tree Graph Operations ==================================================//
+	public void CreateGraph()
 	{
 		vertices = new Vertex[size];
 		edges = new Edge[size * (size - 1) / 2];
@@ -29,141 +149,14 @@ public class KruskalMST : MonoBehaviour
 		SpawnVertices(size);
 		SpawnEdges(size);
 		CheckIfAllVerticesAreConnected();
+		graphCreated = true;
 	}
 
-	private void Update()
+	public void ClearGraph()
 	{
-		if (Input.GetKeyDown(KeyCode.Space))
-		{
-			KruskalsMST();
-		}
-
-		if (Input.GetKeyDown(KeyCode.S))
-		{
-			ClearGraph();
-			CreateGraph();
-		}
-	}
-
-	private void KruskalsMST()
-	{
-		Debug.Log("Running Kruskal's Algorithm");
-		Array.Sort(edges);
-
-		int i = 0;
-		int e = 0;
-
-		while (e < size - 1)
-		{
-			if (edges[i] != null)
-			{
-				int x = Find(edges[i].A.Index);
-				int y = Find(edges[i].B.Index);
-
-				if (x != y)
-				{
-					edges[i].ChangeColor(Color.red);
-					edges[i].GetComponent<LineRenderer>().widthMultiplier = 1.5f;
-					edges[i].GetComponent<LineRenderer>().sortingOrder = -1;
-					Union(x, y);
-					e++;
-				}
-
-				i++;
-			}
-			else
-			{
-				i++;
-			}
-		}
-
-		//for (int e = 0; e < edges.Length; e++)
-		//{
-		//	if (edges[e] != null)
-		//	{
-		//		int x = Find(edges[e].A.Index);
-		//		int y = Find(edges[e].B.Index);
-
-		//		if (x != y)
-		//		{
-		//			edges[e].ChangeColor(Color.red);
-		//			Union(x, y);
-		//		}
-		//	}
-		//}
-	}
-
-	public int Find(int i)
-	{
-		if (vertices[i].Parent != i)
-			vertices[i].Parent = Find(vertices[i].Parent);
-
-		return vertices[i].Parent;
-	}
-
-	public void Union(int x, int y)
-	{
-		if (vertices[x].Rank > vertices[y].Rank)
-			vertices[y].Parent = x;
-		else if (vertices[x].Rank < vertices[y].Rank)
-			vertices[x].Parent = y;
-		else
-		{
-			vertices[y].Parent = x;
-			vertices[x].Rank++;
-		}
-	}
-
-	private void SpawnVertices(int size)
-	{
-		SetPositions();
-		for (int i = 0; i < size; i++)
-		{
-			vertices[i] = Instantiate(vertexPrefab);
-			vertices[i].transform.position = usedPoints[i];
-			vertices[i].transform.parent = gameObject.transform;
-			vertices[i].Index = i;
-			vertices[i].Rank = 0;
-			vertices[i].Parent = i;
-		}
-	}
-
-	private void SpawnEdges(int size)
-	{
-		int o = 0;
-		for (int i = 0; i < size; i++)
-		{
-			for (int j = 0; j < size; j++)
-			{
-				if (i == j)
-					continue;
-				else
-				{
-					if ((vertices[i].transform.position - vertices[j].transform.position).sqrMagnitude < 18)
-					{
-						if (vertices[i].connectedVertices.Contains(vertices[j]))
-							continue;
-						else
-						{
-							edges[o] = Instantiate(edgePrefab);
-							edges[o].A = vertices[i];
-							edges[o].B = vertices[j];
-							edges[o].transform.parent = gameObject.transform;
-							edges[o].Weight = UnityEngine.Random.Range(1, 20);
-							vertices[i].connectedVertices.Add(vertices[j]);
-							vertices[j].connectedVertices.Add(vertices[i]);
-							vertices[i].Connected = true;
-							vertices[j].Connected = true;
-							o++;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	private void ClearGraph()
-	{
+		StopAllCoroutines();
+		working = false;
+		graphCreated = false;
 		for (int i = 0; i < edges.Length; i++)
 			if (edges[i] != null)
 				DestroyImmediate(edges[i].gameObject);
@@ -175,18 +168,6 @@ public class KruskalMST : MonoBehaviour
 		usedPoints.Clear();
 		Array.Clear(edges, 0, edges.Length);
 		Array.Clear(vertices, 0, vertices.Length);
-	}
-
-	private void CheckIfAllVerticesAreConnected()
-	{
-		for (int i = 0; i < size; i++)
-		{
-			if (vertices[i].Connected == false)
-			{
-				ClearGraph();
-				CreateGraph();
-			}
-		}
 	}
 
 	private void SetPositions()
@@ -218,51 +199,99 @@ public class KruskalMST : MonoBehaviour
 		}
 	}
 
-	private void MaybeIWillUseThisLaterIDK()
+	private void SpawnVertices(int size)
 	{
-		//if (Input.GetMouseButtonDown(0))
-		//{
-		//	Vector2 pos = Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
-		//	hit = Physics2D.Raycast(pos, Vector2.zero);
+		SetPositions();
+		for (int i = 0; i < size; i++)
+		{
+			vertices[i] = Instantiate(vertexPrefab);
+			vertices[i].transform.position = usedPoints[i];
+			vertices[i].transform.parent = gameObject.transform;
+			vertices[i].Index = i;
+			vertices[i].Rank = 0;
+			vertices[i].Parent = i;
+		}
+	}
 
-		//	if (hit.collider != null && startNode == null)
-		//	{
-		//		startNode = hit.collider.gameObject.GetComponent<Node>();
-		//	}
-		//	else
-		//	{
-		//		Node node;
-		//		node = Instantiate(nodePrefab, pos, Quaternion.identity);
-		//		node.Value = UnityEngine.Random.Range(0, 20);
-		//		node.transform.position = pos;
-		//		node.transform.parent = gameObject.transform;
-		//	}
-		//}
+	private void UpdateVerticesColors()
+	{
+		if (graphCreated)
+		{
+			for (int i = 0; i < size; i++)
+				if (vertices[i] != null)
+					vertices[i].GetParentColor(vertices[vertices[i].Parent]);
+		}
+	}
 
-		//if (Input.GetMouseButtonDown(1))
-		//{
-		//	Vector2 pos = Camera.main.ScreenToWorldPoint(new Vector2(Input.mousePosition.x, Input.mousePosition.y));
-		//	hit = Physics2D.Raycast(pos, Vector2.zero);
+	private void SpawnEdges(int size)
+	{
+		o = 0;
+		for (int i = 0; i < size; i++)
+		{
+			for (int j = 0; j < size; j++)
+			{
+				if (i == j)
+					continue;
+				else
+				{
+					if ((vertices[i].transform.position - vertices[j].transform.position).sqrMagnitude < 15)
+					{
+						if (vertices[i].connectedVertices.Contains(vertices[j]))
+							continue;
+						else
+						{
+							edges[o] = Instantiate(edgePrefab);
+							edges[o].A = vertices[i];
+							edges[o].B = vertices[j];
 
-		//	if (hit.collider != null)
-		//	{
-		//		if (startNode != null)
-		//		{
-		//			endNode = hit.collider.gameObject.GetComponent<Node>();
-		//			Edge e;
-		//			e = Instantiate(edgePrefab, Vector2.zero, Quaternion.identity);
-		//			e.A = startNode;
-		//			e.B = endNode;
-		//			e.transform.parent = gameObject.transform;
-		//			startNode = null;
-		//			endNode = null;
-		//		}
-		//		else
-		//		{
-		//			startNode = null;
-		//			DestroyImmediate(hit.collider.gameObject);
-		//		}
-		//	}
-		//}
+							bool intersects = false;
+
+							for (int a = 0; a < o; a++)
+							{
+								if (edges[o].Intersects(edges[a]))
+								{
+									intersects = true;
+									break;
+								}
+							}
+
+							if (intersects)
+							{
+								DestroyImmediate(edges[o].gameObject);
+								edges[o] = null;
+							}
+							else
+							{
+								edges[o].transform.parent = gameObject.transform;
+								edges[o].Weight = UnityEngine.Random.Range(1, 20);
+								vertices[i].connectedVertices.Add(vertices[j]);
+								vertices[j].connectedVertices.Add(vertices[i]);
+								vertices[i].Connected = true;
+								vertices[j].Connected = true;
+								o++;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	private void CheckIfAllVerticesAreConnected()
+	{
+		for (int i = 0; i < size; i++)
+		{
+			if (vertices[i].Connected == false)
+			{
+				ClearGraph();
+				CreateGraph();
+			}
+		}
+
+		if (o < 15)
+		{
+			ClearGraph();
+			CreateGraph();
+		}
 	}
 }
