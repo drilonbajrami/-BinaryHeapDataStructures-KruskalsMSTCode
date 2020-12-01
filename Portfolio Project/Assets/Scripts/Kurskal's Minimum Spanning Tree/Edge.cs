@@ -22,7 +22,7 @@ public class Edge : MonoBehaviour, IComparable<Edge>
 	}
 
 	void Update()
-	{
+	{	
 		LineRenderer line = GetComponent<LineRenderer>();
 		Vector3[] points = new Vector3[2];
 		if (a != null)
@@ -48,6 +48,12 @@ public class Edge : MonoBehaviour, IComparable<Edge>
 		GetComponent<LineRenderer>().startColor = color;
 		GetComponent<LineRenderer>().endColor = color;
 		_weightText.color = color;
+	}
+
+	public void ChangeLineColor(Color32 color)
+	{
+		GetComponent<LineRenderer>().startColor = color;
+		GetComponent<LineRenderer>().endColor = color;
 	}
 
 	public Color32 GetColor()

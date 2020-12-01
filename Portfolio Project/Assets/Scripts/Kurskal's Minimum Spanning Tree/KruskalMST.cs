@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 public class KruskalMST : MonoBehaviour
 {
@@ -32,6 +33,10 @@ public class KruskalMST : MonoBehaviour
 
 	private ArrayVertexBox arrayBox;
 	private ArrayEdgeBox arrayEdgeBox;
+
+	private int MSTCost;
+	[SerializeField]
+	private TMP_Text mstCostText;
 
 	private void Update()
 	{
@@ -94,6 +99,7 @@ public class KruskalMST : MonoBehaviour
 					int B = edges[i].B.Index;
 
 					edges[i].ChangeColor(Color.red);
+					arrayEdgeBox.Items[i].E.ChangeLineColor(Color.red);
 
 					arrayBox.Items[A].HighlightIndex(true);
 					arrayBox.Items[B].HighlightIndex(true);
@@ -108,6 +114,7 @@ public class KruskalMST : MonoBehaviour
 					if (x != y)
 					{
 						edges[i].ChangeColor(new Color32(134, 255, 134, 255));
+						arrayEdgeBox.Items[i].E.ChangeLineColor(new Color32(134, 255, 134, 255));
 						edges[i].GetComponent<LineRenderer>().widthMultiplier = 1.1f;
 						edges[i].GetComponent<LineRenderer>().sortingOrder = -1;
 
@@ -183,7 +190,9 @@ public class KruskalMST : MonoBehaviour
 						arrayBox.Items[B].HighlightParent(false);
 						arrayBox.Items[A].HighlightRank(false);
 						arrayBox.Items[B].HighlightRank(false);
+						DestroyImmediate(arrayEdgeBox.Items[i].gameObject);
 						yield return new WaitForSeconds(animationSpeed / 2);
+						MSTCost += edges[i].Weight;
 						e++;
 					}
 					else
@@ -198,8 +207,9 @@ public class KruskalMST : MonoBehaviour
 						arrayBox.Items[B].HighlightIndex(false);
 						arrayBox.Items[A].HighlightParent(false);
 						arrayBox.Items[B].HighlightParent(false);
-
+						DestroyImmediate(arrayEdgeBox.Items[i].gameObject);
 						yield return new WaitForSeconds(animationSpeed / 2);
+						
 					}
 					i++;
 				}
@@ -207,10 +217,15 @@ public class KruskalMST : MonoBehaviour
 					i++;
 			}
 
+			mstCostText.text = "MST Cost: " + MSTCost.ToString();
+
 			for (int a = 0; a < o; a++)
 			{
 				if (edges[a] != null && edges[a].GetColor().Equals(new Color32(200, 200, 200, 255)))
 					DestroyImmediate(edges[a].gameObject);
+
+				if (arrayEdgeBox.Items[a] != null)
+					DestroyImmediate(arrayEdgeBox.Items[a].gameObject);
 			}
 			working = false;
 		}
@@ -262,6 +277,8 @@ public class KruskalMST : MonoBehaviour
 	//================================================== Tree Graph Operations ==================================================//
 	public void CreateGraph()
 	{
+		MSTCost = 0;
+		mstCostText.text = "";
 		vertices = new Vertex[size];
 		edges = new Edge[size * (size - 1) / 2];
 		usedPoints = new List<Vector2>();
@@ -285,6 +302,7 @@ public class KruskalMST : MonoBehaviour
 			if (edges[i] != null)
 				DestroyImmediate(edges[i].gameObject);
 
+
 		for (int i = 0; i < vertices.Length; i++)
 			if (vertices[i] != null)
 			{
@@ -292,17 +310,28 @@ public class KruskalMST : MonoBehaviour
 				DestroyImmediate(arrayBox.Items[i].gameObject);
 			}
 
+		if (arrayEdgeBox.Items != null)
+		{
+			for (int i = 0; i < arrayEdgeBox.Items.Length; i++)
+				if (arrayEdgeBox.Items[i] != null)
+				{
+					DestroyImmediate(arrayEdgeBox.Items[i].gameObject);
+				}
+			Array.Clear(arrayEdgeBox.Items, 0, arrayEdgeBox.Items.Length);
+		}
+
 		usedPoints.Clear();
 		Array.Clear(edges, 0, edges.Length);
 		Array.Clear(vertices, 0, vertices.Length);
 		Array.Clear(arrayBox.Items, 0, arrayBox.Items.Length);
+		
 	}
 
 	private void SetPositions()
 	{
 		for (int i = 0; i < size;)
 		{
-			Vector2 point = new Vector2(UnityEngine.Random.Range(-5.0f, 5.0f), UnityEngine.Random.Range(-2.5f, 3.0f));
+			Vector2 point = new Vector2(UnityEngine.Random.Range(-5.0f, 7.0f), UnityEngine.Random.Range(-2.5f, 3.0f));
 
 			if (usedPoints.Count == 0)
 			{
