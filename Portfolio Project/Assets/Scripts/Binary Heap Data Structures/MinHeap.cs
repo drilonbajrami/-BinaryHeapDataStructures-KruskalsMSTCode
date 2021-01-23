@@ -129,8 +129,8 @@ public class MinHeap : MonoBehaviour
 			yield return new WaitForSeconds(animationSpeed / 2);
 			items[0].ChangeColor(TreeUtils.TRANSPARENT);
 			arrayBox.Items[0].ChangeColor(TreeUtils.TRANSPARENT);
+			working = false;
 		}
-		working = false;
 	}
 
 	private IEnumerator Swap(int indexA, int indexB)
@@ -181,6 +181,7 @@ public class MinHeap : MonoBehaviour
 			items[size] = node;
 
 			arrayItem.Value = node.Value;
+			arrayItem.Index = size;
 			arrayItem.transform.position = new Vector3(arrayBox.gameObject.transform.position.x + size * arrayItem.transform.localScale.x, arrayBox.gameObject.transform.position.y);
 			arrayItem.transform.parent = arrayBox.gameObject.transform;
 			arrayBox.Items[size] = arrayItem;
